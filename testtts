@@ -1,0 +1,1723 @@
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a8548fec4ab8e9e76b52d7cb9f62f2c6e19344b
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,1717 @@
++<!DOCTYPE html>
++<html lang="fr">
++<head>
++  <meta charset="UTF-8" />
++  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++  <title>Simulateur d'arbre de probabilité – Dés via pièces</title>
++  <link rel="preconnect" href="https://fonts.googleapis.com" />
++  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
++  <style>
++    :root {
++      color-scheme: dark;
++      --bg: #0f1115;
++      --surface: #161a22;
++      --surface-raised: #1d2430;
++      --text: #f1f3f8;
++      --text-muted: #9aa0b5;
++      --accent: #3c6df0;
++      --accent-soft: rgba(60, 109, 240, 0.2);
++      --border: rgba(255, 255, 255, 0.08);
++      --shadow: 0 18px 30px rgba(0, 0, 0, 0.35);
++      --radius: 16px;
++      --transition-fast: 180ms ease;
++      --transition-slow: 320ms ease;
++      --font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
++    }
++
++    body.light-theme {
++      color-scheme: light;
++      --bg: #f5f6fb;
++      --surface: #ffffff;
++      --surface-raised: #eef1fb;
++      --text: #161925;
++      --text-muted: #5a637b;
++      --accent: #2f5ae0;
++      --accent-soft: rgba(47, 90, 224, 0.14);
++      --border: rgba(22, 25, 37, 0.1);
++      --shadow: 0 16px 32px rgba(22, 25, 37, 0.15);
++    }
++
++    *,
++    *::before,
++    *::after {
++      box-sizing: border-box;
++    }
++
++    body {
++      margin: 0;
++      padding: 0;
++      min-height: 100vh;
++      font-family: var(--font-family);
++      background: var(--bg);
++      color: var(--text);
++      line-height: 1.5;
++      transition: background var(--transition-slow), color var(--transition-slow);
++    }
++
++    a {
++      color: var(--accent);
++      text-decoration: none;
++    }
++
++    h1,
++    h2,
++    h3 {
++      margin: 0;
++      font-weight: 600;
++      letter-spacing: -0.01em;
++      color: var(--text);
++    }
++
++    p {
++      margin: 0 0 0.65rem;
++      color: var(--text-muted);
++    }
++
++    header {
++      display: flex;
++      align-items: center;
++      justify-content: space-between;
++      padding: 1.75rem clamp(1.5rem, 4vw, 4rem);
++      background: linear-gradient(135deg, rgba(60, 109, 240, 0.08), transparent);
++      position: sticky;
++      top: 0;
++      z-index: 5;
++      backdrop-filter: blur(16px);
++      border-bottom: 1px solid var(--border);
++    }
++
++    .header-left {
++      display: flex;
++      flex-direction: column;
++      gap: 0.35rem;
++    }
++
++    .subtitle {
++      font-size: 0.95rem;
++      color: var(--text-muted);
++    }
++
++    .header-actions {
++      display: flex;
++      align-items: center;
++      gap: 1rem;
++    }
++
++    .theme-toggle {
++      display: inline-flex;
++      align-items: center;
++      gap: 0.5rem;
++      padding: 0.35rem 0.8rem;
++      border-radius: 999px;
++      background: var(--surface-raised);
++      border: 1px solid var(--border);
++      box-shadow: var(--shadow);
++      cursor: pointer;
++      transition: background var(--transition-fast), transform var(--transition-fast);
++    }
++
++    .theme-toggle:focus-within,
++    .theme-toggle:hover {
++      transform: translateY(-1px);
++      background: var(--accent-soft);
++    }
++
++    .theme-toggle input {
++      width: 0;
++      height: 0;
++      opacity: 0;
++      position: absolute;
++    }
++
++    .toggle-thumb {
++      width: 42px;
++      height: 22px;
++      background: var(--surface);
++      border-radius: 999px;
++      border: 1px solid var(--border);
++      position: relative;
++      transition: background var(--transition-fast);
++    }
++
++    .toggle-thumb::after {
++      content: "";
++      width: 18px;
++      height: 18px;
++      border-radius: 50%;
++      background: var(--accent);
++      position: absolute;
++      top: 1px;
++      left: 1px;
++      transition: transform var(--transition-fast), background var(--transition-fast);
++    }
++
++    .theme-toggle input:checked + .toggle-thumb::after {
++      transform: translateX(20px);
++    }
++
++    main {
++      padding: 2rem clamp(1.5rem, 4vw, 4rem) 4rem;
++      display: grid;
++      gap: 2rem;
++    }
++
++    .layout-grid {
++      display: grid;
++      grid-template-columns: repeat(12, 1fr);
++      gap: 1.75rem;
++    }
++
++    .card {
++      background: var(--surface);
++      border-radius: var(--radius);
++      border: 1px solid var(--border);
++      box-shadow: var(--shadow);
++      padding: 1.5rem;
++      transition: transform var(--transition-fast), border var(--transition-fast), background var(--transition-fast);
++    }
++
++    .card:hover {
++      transform: translateY(-2px);
++      border-color: rgba(60, 109, 240, 0.35);
++    }
++
++    .card h2 {
++      font-size: 1.25rem;
++      margin-bottom: 1rem;
++    }
++
++    .control-card {
++      grid-column: span 4;
++      display: flex;
++      flex-direction: column;
++      gap: 1.25rem;
++    }
++
++    .visual-card {
++      grid-column: span 8;
++      display: flex;
++      flex-direction: column;
++      gap: 1rem;
++    }
++
++    .legend-bar {
++      height: 12px;
++      border-radius: 999px;
++      background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
++      border: 1px solid var(--border);
++      margin: 0.5rem 0;
++    }
++
++    .legend-scale {
++      display: flex;
++      justify-content: space-between;
++      font-size: 0.75rem;
++      color: var(--text-muted);
++    }
++
++    .control-section {
++      display: grid;
++      gap: 1rem;
++    }
++
++    .control-group {
++      display: flex;
++      flex-direction: column;
++      gap: 0.35rem;
++    }
++
++    .control-group label {
++      font-size: 0.95rem;
++      font-weight: 500;
++      color: var(--text);
++    }
++
++    .radio-group,
++    .inline-group {
++      display: flex;
++      gap: 0.75rem;
++      flex-wrap: wrap;
++    }
++
++    input,
++    select,
++    button,
++    .preset-btn {
++      font: inherit;
++    }
++
++    select,
++    input[type="number"],
++    input[type="range"] {
++      background: var(--surface-raised);
++      color: var(--text);
++      border-radius: 12px;
++      border: 1px solid var(--border);
++      padding: 0.55rem 0.75rem;
++      transition: border var(--transition-fast), background var(--transition-fast);
++    }
++
++    select:focus,
++    input:focus,
++    button:focus,
++    .preset-btn:focus {
++      outline: 2px solid var(--accent);
++      outline-offset: 2px;
++    }
++
++    button,
++    .preset-btn {
++      cursor: pointer;
++      border-radius: 12px;
++      border: none;
++      padding: 0.7rem 1.1rem;
++      color: white;
++      background: linear-gradient(135deg, var(--accent), rgba(60, 109, 240, 0.75));
++      border: 1px solid rgba(60, 109, 240, 0.3);
++      transition: transform var(--transition-fast), box-shadow var(--transition-fast), filter var(--transition-fast);
++      box-shadow: 0 12px 24px rgba(60, 109, 240, 0.2);
++    }
++
++    button:hover,
++    .preset-btn:hover {
++      transform: translateY(-1px);
++      filter: brightness(1.05);
++    }
++
++    button:disabled,
++    .preset-btn:disabled {
++      opacity: 0.5;
++      cursor: not-allowed;
++      transform: none;
++      box-shadow: none;
++    }
++
++    .preset-grid {
++      display: grid;
++      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
++      gap: 0.5rem;
++    }
++
++    .preset-btn {
++      display: flex;
++      align-items: center;
++      justify-content: center;
++      gap: 0.35rem;
++      background: var(--surface-raised);
++      color: var(--text);
++      border: 1px solid var(--border);
++      box-shadow: none;
++    }
++
++    .preset-btn svg {
++      width: 16px;
++      height: 16px;
++      fill: currentColor;
++    }
++
++    .bias-controls {
++      background: var(--surface-raised);
++      padding: 0.75rem;
++      border-radius: 12px;
++      border: 1px dashed var(--border);
++      display: grid;
++      gap: 0.5rem;
++    }
++
++    .bias-controls.hidden {
++      display: none;
++    }
++
++    .bias-value {
++      font-variant-numeric: tabular-nums;
++      color: var(--accent);
++      font-weight: 600;
++    }
++
++    .warning {
++      display: none;
++      padding: 0.75rem 0.9rem;
++      border-radius: 12px;
++      background: rgba(255, 186, 90, 0.15);
++      border: 1px solid rgba(255, 186, 90, 0.45);
++      color: #ffd588;
++      font-size: 0.9rem;
++    }
++
++    .warning.visible {
++      display: block;
++    }
++
++    .info-card {
++      display: grid;
++      gap: 0.5rem;
++      font-size: 0.9rem;
++    }
++
++    .info-card h3 {
++      font-size: 1rem;
++      color: var(--text);
++    }
++
++    #tree-container {
++      position: relative;
++      min-height: 480px;
++      border-radius: 12px;
++      background: var(--surface-raised);
++      border: 1px solid var(--border);
++      overflow: hidden;
++    }
++
++    #tree-container svg {
++      width: 100%;
++      height: 100%;
++    }
++
++    .tree-toolbar {
++      display: flex;
++      justify-content: space-between;
++      align-items: center;
++      gap: 1rem;
++    }
++
++    .tree-toolbar button {
++      background: var(--surface-raised);
++      color: var(--text);
++      border: 1px solid var(--border);
++      box-shadow: none;
++    }
++
++    table {
++      width: 100%;
++      border-collapse: collapse;
++      background: var(--surface-raised);
++      border-radius: 12px;
++      overflow: hidden;
++    }
++
++    th,
++    td {
++      padding: 0.65rem 0.75rem;
++      text-align: left;
++      font-size: 0.9rem;
++    }
++
++    thead {
++      background: rgba(60, 109, 240, 0.18);
++    }
++
++    tbody tr:nth-child(odd) {
++      background: rgba(255, 255, 255, 0.02);
++    }
++
++    .stat-summary {
++      display: flex;
++      flex-wrap: wrap;
++      gap: 1rem;
++      color: var(--text-muted);
++      font-size: 0.9rem;
++    }
++
++    .status-message {
++      min-height: 1.4rem;
++      font-size: 0.95rem;
++      color: var(--text-muted);
++    }
++
++    .tooltip {
++      position: absolute;
++      pointer-events: none;
++      padding: 0.5rem 0.65rem;
++      background: rgba(15, 17, 21, 0.88);
++      border-radius: 8px;
++      font-size: 0.85rem;
++      color: #fff;
++      transform: translate(-50%, -120%);
++      opacity: 0;
++      transition: opacity var(--transition-fast), transform var(--transition-fast);
++      border: 1px solid rgba(255, 255, 255, 0.15);
++      backdrop-filter: blur(8px);
++      z-index: 10;
++    }
++
++    .tooltip.visible {
++      opacity: 1;
++      transform: translate(-50%, -130%);
++    }
++
++    .loader-overlay {
++      position: absolute;
++      inset: 0;
++      background: rgba(15, 17, 21, 0.6);
++      backdrop-filter: blur(6px);
++      display: flex;
++      align-items: center;
++      justify-content: center;
++      opacity: 0;
++      pointer-events: none;
++      transition: opacity var(--transition-fast);
++    }
++
++    .loader-overlay.visible {
++      opacity: 1;
++      pointer-events: all;
++    }
++
++    .spinner {
++      width: 44px;
++      height: 44px;
++      border-radius: 50%;
++      border: 4px solid rgba(255, 255, 255, 0.12);
++      border-top-color: var(--accent);
++      animation: spin 0.9s linear infinite;
++    }
++
++    @keyframes spin {
++      to {
++        transform: rotate(360deg);
++      }
++    }
++
++    .three-wrapper {
++      position: relative;
++      width: 220px;
++      height: 140px;
++      border-radius: 18px;
++      border: 1px solid var(--border);
++      background: radial-gradient(circle at 30% 30%, rgba(60, 109, 240, 0.2), transparent 60%);
++      overflow: hidden;
++    }
++
++    .three-wrapper canvas {
++      width: 100%;
++      height: 100%;
++      display: block;
++    }
++
++    .three-overlay {
++      position: absolute;
++      bottom: 0.5rem;
++      right: 0.5rem;
++      display: flex;
++      gap: 0.5rem;
++    }
++
++    .three-overlay button {
++      padding: 0.35rem 0.6rem;
++      font-size: 0.75rem;
++      border-radius: 999px;
++      background: rgba(15, 17, 21, 0.6);
++      color: #fff;
++      border: 1px solid rgba(255, 255, 255, 0.2);
++      box-shadow: none;
++    }
++
++    .three-status {
++      position: absolute;
++      top: 0.6rem;
++      left: 0.8rem;
++      font-size: 0.75rem;
++      color: var(--text-muted);
++      background: rgba(15, 17, 21, 0.5);
++      padding: 0.2rem 0.5rem;
++      border-radius: 999px;
++      border: 1px solid rgba(255, 255, 255, 0.08);
++    }
++
++    footer {
++      padding: 2rem clamp(1.5rem, 4vw, 4rem) 4rem;
++      border-top: 1px solid var(--border);
++      background: rgba(0, 0, 0, 0.15);
++      color: var(--text-muted);
++      font-size: 0.85rem;
++    }
++
++    @media (max-width: 1080px) {
++      .control-card {
++        grid-column: span 12;
++      }
++
++      .visual-card {
++        grid-column: span 12;
++      }
++
++      header {
++        flex-direction: column;
++        align-items: flex-start;
++        gap: 1rem;
++      }
++
++      .header-actions {
++        width: 100%;
++        justify-content: space-between;
++      }
++
++      .three-wrapper {
++        width: 100%;
++      }
++    }
++
++    @media (max-width: 720px) {
++      main {
++        padding: 1.5rem;
++      }
++
++      header {
++        padding: 1.25rem 1.5rem;
++      }
++
++      .layout-grid {
++        gap: 1.25rem;
++      }
++    }
++  </style>
++  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js" defer></script>
++  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js" defer></script>
++</head>
++<body>
++  <header>
++    <div class="header-left">
++      <h1>Simulateur de dés via lancers de pièces</h1>
++      <p class="subtitle">Arbre de probabilité interactif, statistiques Monte Carlo et visualisation 3D élégante.</p>
++    </div>
++    <div class="header-actions">
++      <label class="theme-toggle" aria-label="Basculer thème">
++        <span aria-hidden="true">🌙</span>
++        <input id="themeToggle" type="checkbox" aria-label="Activer le thème clair" />
++        <span class="toggle-thumb" aria-hidden="true"></span>
++        <span aria-hidden="true">☀️</span>
++      </label>
++      <div class="three-wrapper" id="threeContainer" role="group" aria-label="Dé virtuel en rotation décorative">
++        <div class="three-status" id="threeStatus">Rotation</div>
++        <div class="three-overlay">
++          <button type="button" id="toggleRotation" aria-label="Mettre en pause ou reprendre la rotation 3D">Pause</button>
++        </div>
++      </div>
++    </div>
++  </header>
++  <main>
++    <section class="layout-grid">
++      <article class="card control-card" aria-labelledby="controlTitle">
++        <div class="tree-toolbar" style="justify-content: space-between; align-items: center;">
++          <h2 id="controlTitle">Paramètres de simulation</h2>
++          <div class="status-message" id="statusMessage" aria-live="polite"></div>
++        </div>
++        <div class="control-section" role="group" aria-describedby="controlHelp">
++          <div class="control-group">
++            <label for="diceCount">Nombre de dés</label>
++            <select id="diceCount" aria-label="Sélectionner le nombre de dés">
++              <option value="1">1 dé</option>
++              <option value="2">2 dés</option>
++            </select>
++          </div>
++          <div class="control-group" role="radiogroup" aria-label="Type de pièce">
++            <span>Pièce</span>
++            <div class="radio-group">
++              <label><input type="radio" name="coinType" value="fair" checked /> Équitable (p = 0,5)</label>
++              <label><input type="radio" name="coinType" value="biased" /> Biaisée</label>
++            </div>
++          </div>
++          <div id="biasControls" class="bias-controls hidden" aria-live="polite">
++            <div class="control-group">
++              <label for="biasSlider">Probabilité de pile (p)</label>
++              <div class="inline-group" style="align-items: center;">
++                <input id="biasSlider" type="range" min="0.05" max="0.95" step="0.01" value="0.61" aria-valuemin="0.05" aria-valuemax="0.95" aria-valuenow="0.61" />
++                <span class="bias-value" id="biasValue">0,61</span>
++              </div>
++            </div>
++            <label><input type="checkbox" id="debiasToggle" checked /> Utiliser le débiaisage de von Neumann</label>
++          </div>
++          <div class="control-group">
++            <label for="displayMode">Affichage</label>
++            <select id="displayMode" aria-label="Sélectionner le mode d'affichage des résultats">
++              <option value="full">Arbre complet</option>
++              <option value="sum" disabled>Somme des deux dés</option>
++            </select>
++          </div>
++          <div class="control-group">
++            <label for="simulationCount">Nombre de simulations Monte Carlo (N)</label>
++            <input id="simulationCount" type="number" min="100" max="200000" step="100" value="10000" aria-describedby="simulationHelp" />
++            <span id="simulationHelp" class="subtitle">Valeur recommandée : 10 000 à 50 000 pour des écarts réduits.</span>
++          </div>
++          <div class="preset-grid" aria-label="Préréglages de simulation">
++            <button class="preset-btn" data-preset="a" type="button">
++              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10.028 10.028 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8 8.024 8.024 0 0 1-8 8Zm.75-4.5h-1.5v-1.5h1.5Zm1.5-7.125-.675.693A2.344 2.344 0 0 0 13 11.25h-1.5v-.375a1.125 1.125 0 0 1 .375-.863l.9-.924a2.25 2.25 0 1 0-3.75-1.688H6.75a3.75 3.75 0 1 1 7.5 0 3.736 3.736 0 0 1-.001.036Z"/></svg>
++              Charger preset A
++            </button>
++            <button class="preset-btn" data-preset="b" type="button">
++              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M6 3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Zm4.5 3v3h3V6Zm0 6v3h3v-3Zm6-6h-3v3h3Zm0 6h-3v3h3Zm-9-6H6v3h1.5Zm0 6H6v3h1.5Z"/></svg>
++              Charger preset B
++            </button>
++          </div>
++          <div class="warning" id="debiasWarning" role="alert">
++            Attention : une pièce biaisée sans débiaisage induit un dé injuste. Les probabilités théoriques reflètent ce biais.
++          </div>
++          <button type="button" id="runSimulation">Lancer la simulation</button>
++        </div>
++        <p id="controlHelp" class="subtitle">Tous les algorithmes respectent la méthode de rejet 0..7 (rejet de 6 et 7). Le débiaisage de von Neumann rend les bits équitables avant cette étape.</p>
++      </article>
++      <article class="card visual-card" aria-labelledby="visualTitle">
++        <div class="tree-toolbar">
++          <h2 id="visualTitle">Arbre de probabilité</h2>
++          <button type="button" id="exportSvg">Exporter SVG</button>
++        </div>
++        <div id="tree-container" role="img" aria-label="Arbre de probabilité des résultats du dé">
++          <svg id="probabilityTree" viewBox="0 0 800 500" role="presentation"></svg>
++          <div class="loader-overlay" id="treeLoader" aria-hidden="true">
++            <div class="spinner" role="status" aria-label="Chargement"></div>
++          </div>
++        </div>
++        <div>
++          <div class="legend-bar" id="legendBar"></div>
++          <div class="legend-scale"><span id="legendMin">0%</span><span>Probabilité finale</span><span id="legendMax">0%</span></div>
++        </div>
++        <div class="stat-summary" id="statSummary"></div>
++        <div class="table-wrapper" aria-live="polite">
++          <table aria-describedby="tableCaption">
++            <caption id="tableCaption" style="padding: 0.5rem 0; caption-side: top; color: var(--text-muted); text-align: left;">Comparaison entre probabilités théoriques et estimation Monte Carlo.</caption>
++            <thead>
++              <tr>
++                <th scope="col">Issue</th>
++                <th scope="col">Théorique</th>
++                <th scope="col">Empirique</th>
++                <th scope="col">|Δ|</th>
++                <th scope="col">Δ relatif</th>
++              </tr>
++            </thead>
++            <tbody id="statsTableBody"></tbody>
++          </table>
++        </div>
++      </article>
++      <aside class="card info-card" style="grid-column: span 12;">
++        <h3>Comprendre les méthodes</h3>
++        <p><strong>Débiaisage de von Neumann :</strong> on observe la pièce deux fois. HT vaut 1, TH vaut 0. HH et TT sont ignorés. Ce procédé répété autant que nécessaire produit des bits équitables, même si la pièce est biaisée.</p>
++        <p><strong>Méthode de rejet :</strong> trois bits équitables donnent un nombre de 0 à 7. Les valeurs 6 et 7 sont rejetées, puis on relance. Les six valeurs retenues sont uniformes.</p>
++        <p><strong>Note sur l’équité :</strong> sans débiaisage, une pièce biaisée transmet son biais au dé simulé. Les probabilités théoriques le mettent en évidence.</p>
++      </aside>
++    </section>
++  </main>
++  <footer>
++    <p>Projet démonstratif : génération d’un dé équitable via des lancers de pièces. Visualisations animées avec D3.js et Three.js. Navigation clavier, thème sombre/clair, export SVG et statistiques inclus.</p>
++  </footer>
++  <div id="tooltip" class="tooltip" role="presentation"></div>
++  <script type="module">
++    (function () {
++      "use strict";
++
++      const formatPercent = (value, digits = 3) => `${(value * 100).toFixed(digits)} %`;
++      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
++
++      const CoinModel = (() => {
++        class CoinModel {
++          constructor(probability = 0.5) {
++            this.setBias(probability);
++          }
++
++          setBias(probability) {
++            this.probability = clamp(probability, 0.000001, 0.999999);
++          }
++
++          flip() {
++            return Math.random() < this.probability ? 1 : 0;
++          }
++        }
++
++        return CoinModel;
++      })();
++
++      const DieSimulator = (() => {
++        class DieSimulator {
++          constructor({ probability = 0.5, useDebiasing = false } = {}) {
++            this.coin = new CoinModel(probability);
++            this.useDebiasing = useDebiasing;
++          }
++
++          setBias(probability) {
++            this.coin.setBias(probability);
++          }
++
++          setDebiasing(useDebiasing) {
++            this.useDebiasing = Boolean(useDebiasing);
++          }
++
++          flipBiased() {
++            return this.coin.flip();
++          }
++
++          flipFairBit() {
++            if (!this.useDebiasing) {
++              return this.flipBiased();
++            }
++            // Von Neumann extractor
++            // Returns unbiased bit using pairs of flips.
++            for (;;) {
++              const first = this.flipBiased();
++              const second = this.flipBiased();
++              if (first === second) {
++                continue;
++              }
++              return first === 1 && second === 0 ? 1 : 0;
++            }
++          }
++
++          rollDie() {
++            for (;;) {
++              const b1 = this.flipFairBit();
++              const b2 = this.flipFairBit();
++              const b3 = this.flipFairBit();
++              const value = (b1 << 2) | (b2 << 1) | b3; // 0..7
++              if (value < 6) {
++                return value + 1;
++              }
++            }
++          }
++
++          static computeSingleDieTheory(probability, useDebiasing) {
++            const q = useDebiasing ? 0.5 : probability;
++            const bits = {};
++            let acceptance = 0;
++            for (let value = 0; value < 8; value += 1) {
++              const bitsStr = value.toString(2).padStart(3, "0");
++              const ones = bitsStr.split("").reduce((count, bit) => count + (bit === "1" ? 1 : 0), 0);
++              const p = Math.pow(q, ones) * Math.pow(1 - q, 3 - ones);
++              const accepted = value < 6;
++              if (accepted) {
++                acceptance += p;
++              }
++              bits[bitsStr] = {
++                value,
++                probability: p,
++                accepted,
++              };
++            }
++            const rejection = 1 - acceptance;
++            const distribution = {};
++            for (let face = 1; face <= 6; face += 1) {
++              const key = (face - 1).toString(2).padStart(3, "0");
++              const attemptProbability = bits[key].probability;
++              distribution[face] = acceptance > 0 ? attemptProbability / acceptance : 0;
++            }
++            return {
++              distribution,
++              bits,
++              acceptance,
++              rejection,
++              bitProbability: q,
++            };
++          }
++        }
++
++        return DieSimulator;
++      })();
++
++      const Stats = (() => {
++        const toEntries = (object) => Object.entries(object).map(([key, value]) => ({ key, value }));
++
++        class Stats {
++          static singleDie(probability, useDebiasing) {
++            return DieSimulator.computeSingleDieTheory(probability, useDebiasing);
++          }
++
++          static twoDice(distribution, mode = "full") {
++            const entries = toEntries(distribution).map(({ key, value }) => ({ face: Number(key), probability: value }));
++            const base = {};
++            if (mode === "sum") {
++              for (const { face: i, probability: pi } of entries) {
++                for (const { face: j, probability: pj } of entries) {
++                  const outcome = i + j;
++                  base[outcome] = (base[outcome] || 0) + pi * pj;
++                }
++              }
++              return base;
++            }
++            for (const { face: i, probability: pi } of entries) {
++              for (const { face: j, probability: pj } of entries) {
++                base[`${i},${j}`] = pi * pj;
++              }
++            }
++            return base;
++          }
++
++          static empiricalFromCounts(counts, total) {
++            const result = {};
++            for (const [key, value] of Object.entries(counts)) {
++              result[key] = value / total;
++            }
++            return result;
++          }
++
++          static mergeMetrics(theoretical, empirical, formatter) {
++            const keys = new Set([...Object.keys(theoretical), ...Object.keys(empirical)]);
++            const rows = [];
++            for (const key of Array.from(keys).sort((a, b) => formatter(a) - formatter(b))) {
++              const theo = theoretical[key] || 0;
++              const emp = empirical[key] || 0;
++              const absolute = Math.abs(emp - theo);
++              const relative = theo > 0 ? absolute / theo : null;
++              rows.push({ outcome: key, theoretical: theo, empirical: emp, absolute, relative });
++            }
++            return rows;
++          }
++
++          static describe(rows) {
++            if (!rows.length) return null;
++            const maxAbsolute = rows.reduce((max, row) => Math.max(max, row.absolute), 0);
++            const maxRelative = rows.reduce((max, row) => (row.relative !== null ? Math.max(max, row.relative) : max), 0);
++            const totalVariation = rows.reduce((sum, row) => sum + row.absolute, 0) / 2;
++            return {
++              maxAbsolute,
++              maxRelative,
++              totalVariation,
++            };
++          }
++        }
++
++        return Stats;
++      })();
++
++      const TreeBuilder = (() => {
++        const formatBitsLabel = (bits, probability) => `Bits ${bits} (${formatPercent(probability, 2)})`;
++
++        class TreeBuilder {
++          static oneDie(theory) {
++            const root = {
++              id: "root",
++              label: "Dé simulé",
++              pLocal: 1,
++              pCumul: 1,
++              children: [],
++            };
++
++            const attemptNode = {
++              id: "attempt",
++              label: "Tirage de 3 bits",
++              pLocal: 1,
++              pCumul: 1,
++              children: [],
++            };
++
++            const rejectionChildren = [];
++            let rejectionProbability = 0;
++
++            for (const [bits, data] of Object.entries(theory.bits)) {
++              if (data.accepted) {
++                const face = data.value + 1;
++                const resultProbability = theory.distribution[face];
++                const bitsNode = {
++                  id: `bits-${bits}`,
++                  label: formatBitsLabel(bits, data.probability),
++                  pLocal: data.probability,
++                  pCumul: data.probability,
++                  children: [
++                    {
++                      id: `face-${face}`,
++                      label: `Face ${face}`,
++                      pLocal: data.probability > 0 ? resultProbability / data.probability : 0,
++                      pCumul: resultProbability,
++                      children: [],
++                    },
++                  ],
++                };
++                attemptNode.children.push(bitsNode);
++              } else {
++                rejectionProbability += data.probability;
++                rejectionChildren.push({
++                  id: `rej-${bits}`,
++                  label: formatBitsLabel(bits, data.probability),
++                  pLocal: theory.rejection > 0 ? data.probability / theory.rejection : 0,
++                  pCumul: data.probability,
++                  children: [],
++                });
++              }
++            }
++
++            if (rejectionChildren.length) {
++              attemptNode.children.push({
++                id: "rejection",
++                label: `Rejet (relance) – ${formatPercent(theory.rejection, 2)}`,
++                pLocal: theory.rejection,
++                pCumul: theory.rejection,
++                children: rejectionChildren,
++              });
++            }
++
++            root.children.push(attemptNode);
++            return root;
++          }
++
++          static twoDicePairs(distribution) {
++            const root = {
++              id: "root-2",
++              label: "Deux dés (paires)",
++              pLocal: 1,
++              pCumul: 1,
++              children: [],
++            };
++
++            for (let face = 1; face <= 6; face += 1) {
++              const pFace = distribution[face];
++              const dieNode = {
++                id: `die1-${face}`,
++                label: `Dé 1 : ${face}`,
++                pLocal: pFace,
++                pCumul: pFace,
++                children: [],
++              };
++
++              for (let face2 = 1; face2 <= 6; face2 += 1) {
++                const pFace2 = distribution[face2];
++                const secondNode = {
++                  id: `die2-${face}-${face2}`,
++                  label: `Dé 2 : ${face2}`,
++                  pLocal: pFace2,
++                  pCumul: pFace * pFace2,
++                  children: [
++                    {
++                      id: `pair-${face}-${face2}`,
++                      label: `Résultat (${face}, ${face2})`,
++                      pLocal: 1,
++                      pCumul: pFace * pFace2,
++                      children: [],
++                    },
++                  ],
++                };
++                dieNode.children.push(secondNode);
++              }
++
++              root.children.push(dieNode);
++            }
++
++            return root;
++          }
++
++          static twoDiceSum(distribution) {
++            const root = {
++              id: "root-sum",
++              label: "Deux dés (somme)",
++              pLocal: 1,
++              pCumul: 1,
++              children: [],
++            };
++
++            const sumProbabilities = {};
++            for (let a = 1; a <= 6; a += 1) {
++              for (let b = 1; b <= 6; b += 1) {
++                const sum = a + b;
++                const probability = distribution[a] * distribution[b];
++                sumProbabilities[sum] = (sumProbabilities[sum] || 0) + probability;
++              }
++            }
++
++            for (const sum of Object.keys(sumProbabilities).sort((a, b) => Number(a) - Number(b))) {
++              const combos = [];
++              for (let a = 1; a <= 6; a += 1) {
++                for (let b = 1; b <= 6; b += 1) {
++                  if (a + b === Number(sum)) {
++                    combos.push({ faces: `${a} + ${b}`, probability: distribution[a] * distribution[b] });
++                  }
++                }
++              }
++              const children = combos.map((combo, index) => ({
++                id: `sum-${sum}-${index}`,
++                label: `${combo.faces} (${formatPercent(combo.probability, 2)})`,
++                pLocal: sumProbabilities[sum] > 0 ? combo.probability / sumProbabilities[sum] : 0,
++                pCumul: combo.probability,
++                children: [],
++              }));
++              root.children.push({
++                id: `sum-${sum}`,
++                label: `Somme ${sum}`,
++                pLocal: sumProbabilities[sum],
++                pCumul: sumProbabilities[sum],
++                children,
++              });
++            }
++
++            return root;
++          }
++        }
++
++        return TreeBuilder;
++      })();
++
++      const TreeViewD3 = (() => {
++        class TreeViewD3 {
++          constructor(svgSelector, tooltipSelector) {
++            this.svg = d3.select(svgSelector);
++            this.tooltip = document.querySelector(tooltipSelector);
++            this.container = this.svg.node().parentNode;
++            this.resizeObserver = new ResizeObserver(() => {
++              if (this.lastData) {
++                this.render(this.lastData, this.lastColorScaleInfo);
++              }
++            });
++            this.resizeObserver.observe(this.container);
++          }
++
++          render(data, colorScaleInfo = null) {
++            this.lastData = data;
++            this.lastColorScaleInfo = colorScaleInfo;
++            const width = this.container.clientWidth || 800;
++            const dx = 80;
++            const dy = Math.max(width / 6, 140);
++            const tree = d3.tree().nodeSize([dx, dy]);
++            const root = d3.hierarchy(data);
++            tree(root);
++
++            let x0 = Infinity;
++            let x1 = -Infinity;
++            root.each((d) => {
++              if (d.x > x1) x1 = d.x;
++              if (d.x < x0) x0 = d.x;
++            });
++
++            const height = x1 - x0 + 160;
++            const marginTop = 80;
++            const marginLeft = 80;
++
++            this.svg.attr("viewBox", [0, 0, width + marginLeft * 1.4, height + marginTop]).attr("role", "img");
++            this.svg.selectAll("*").remove();
++
++            const g = this.svg.append("g").attr("transform", `translate(${marginLeft}, ${marginTop / 2 - x0})`);
++
++            const link = g.append("g")
++              .attr("fill", "none")
++              .attr("stroke", "rgba(255,255,255,0.18)")
++              .attr("stroke-width", 1.4)
++              .selectAll("path")
++              .data(root.links())
++              .join("path")
++              .attr("d", d3.linkHorizontal().x((d) => d.y).y((d) => d.x));
++
++            const describeNode = (d) => {
++              const local = formatPercent(d.data.pLocal ?? 0, 3);
++              const cumulative = formatPercent(d.data.pCumul ?? 0, 3);
++              return `${d.data.label}. Proba locale ${local}. Proba cumulée ${cumulative}.`;
++            };
++
++            const showTooltip = (event, d) => {
++              if (!this.tooltip) return;
++              const localPercent = formatPercent(d.data.pLocal ?? 0, 3);
++              const cumulativePercent = formatPercent(d.data.pCumul ?? 0, 3);
++              this.tooltip.innerHTML = `<strong>${d.data.label}</strong><br/>Proba locale : ${localPercent}<br/>Proba cumulée : ${cumulativePercent}`;
++              let x = event.pageX;
++              let y = event.pageY;
++              if ((typeof x !== "number" || Number.isNaN(x)) && event.target) {
++                const rect = event.target.getBoundingClientRect();
++                x = rect.left + rect.width / 2 + window.scrollX;
++                y = rect.top + rect.height / 2 + window.scrollY;
++              }
++              this.tooltip.style.left = `${x}px`;
++              this.tooltip.style.top = `${y - 12}px`;
++              this.tooltip.classList.add("visible");
++            };
++
++            const hideTooltip = () => {
++              if (!this.tooltip) return;
++              this.tooltip.classList.remove("visible");
++            };
++
++            const node = g.append("g")
++              .attr("stroke-linejoin", "round")
++              .attr("stroke-width", 1.5)
++              .selectAll("g")
++              .data(root.descendants())
++              .join((enter) => {
++                const nodeEnter = enter.append("g")
++                  .attr("transform", (d) => `translate(${d.y}, ${d.x})`)
++                  .attr("tabindex", 0)
++                  .attr("role", "treeitem")
++                  .attr("aria-label", describeNode);
++
++                nodeEnter.append("circle")
++                  .attr("r", 10)
++                  .attr("fill", (d) => {
++                    if (!d.children || d.children.length === 0) {
++                      if (colorScaleInfo && colorScaleInfo.scale && colorScaleInfo.domainWidth > 0) {
++                        return colorScaleInfo.scale(d.data.pCumul);
++                      }
++                      if (colorScaleInfo && colorScaleInfo.scale) {
++                        return colorScaleInfo.scale(0.5);
++                      }
++                      return "var(--accent)";
++                    }
++                    return "var(--surface-raised)";
++                  })
++                  .attr("stroke", "rgba(60, 109, 240, 0.65)")
++                  .attr("stroke-width", 1.2);
++
++                nodeEnter.append("text")
++                  .attr("dy", "0.31em")
++                  .attr("x", (d) => (d.children ? -16 : 16))
++                  .attr("text-anchor", (d) => (d.children ? "end" : "start"))
++                  .text((d) => d.data.label)
++                  .attr("fill", "var(--text)")
++                  .attr("font-size", "0.85rem");
++
++                nodeEnter
++                  .on("mouseenter", (event, d) => showTooltip(event, d))
++                  .on("mouseleave", hideTooltip)
++                  .on("focus", (event, d) => showTooltip(event, d))
++                  .on("blur", hideTooltip);
++
++                return nodeEnter;
++              });
++
++            node.select("circle")
++              .transition()
++              .duration(320)
++              .attr("r", (d) => (d.children ? 9 : 11));
++
++            link
++              .attr("stroke", "rgba(113, 136, 198, 0.5)")
++              .attr("stroke-width", 1.2);
++          }
++
++          destroy() {
++            this.resizeObserver.disconnect();
++          }
++        }
++
++        return TreeViewD3;
++      })();
++
++      const Dice3D = (() => {
++        class Dice3D {
++          constructor(container, statusEl, toggleButton) {
++            this.container = container;
++            this.statusEl = statusEl;
++            this.toggleButton = toggleButton;
++            this.scene = null;
++            this.camera = null;
++            this.renderer = null;
++            this.cube = null;
++            this.animating = false;
++            this.animationFrame = null;
++            this.prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
++            this.prefersReduced = this.prefersReducedMotion.matches;
++            this.init();
++          }
++
++          init() {
++            if (!this.container || typeof THREE === "undefined") {
++              return;
++            }
++
++            try {
++              this.scene = new THREE.Scene();
++              this.scene.background = new THREE.Color(0x10131a);
++              const width = this.container.clientWidth;
++              const height = this.container.clientHeight;
++              this.camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 100);
++              this.camera.position.set(0, 1.5, 5);
++
++              this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
++              this.renderer.setPixelRatio(window.devicePixelRatio);
++              this.renderer.setSize(width, height);
++              this.container.appendChild(this.renderer.domElement);
++
++              const ambient = new THREE.AmbientLight(0xffffff, 0.7);
++              const directional = new THREE.DirectionalLight(0x89a4ff, 0.9);
++              directional.position.set(3, 5, 4);
++              this.scene.add(ambient);
++              this.scene.add(directional);
++
++              const geometry = new THREE.BoxGeometry(1.6, 1.6, 1.6, 1, 1, 1);
++              const materials = this.createFaceMaterials();
++              this.cube = new THREE.Mesh(geometry, materials);
++              this.scene.add(this.cube);
++
++              this.renderer.render(this.scene, this.camera);
++              this.updateStatus();
++              this.attachEvents();
++              this.onResize();
++              window.addEventListener("resize", () => this.onResize());
++              const motionHandler = (event) => {
++                this.prefersReduced = event.matches;
++                if (this.prefersReduced) {
++                  this.stop();
++                  this.updateStatus("Motion réduite");
++                } else if (!this.animating) {
++                  this.start();
++                }
++                this.updateToggleLabel();
++              };
++              if (this.prefersReducedMotion.addEventListener) {
++                this.prefersReducedMotion.addEventListener("change", motionHandler);
++              } else if (this.prefersReducedMotion.addListener) {
++                this.prefersReducedMotion.addListener(motionHandler);
++              }
++
++              this.updateToggleLabel();
++              if (!this.prefersReduced) {
++                this.start();
++              } else {
++                this.updateStatus("Motion réduite");
++              }
++            } catch (error) {
++              console.warn("Three.js non disponible", error);
++              if (this.statusEl) {
++                this.statusEl.textContent = "3D indisponible";
++              }
++              if (this.toggleButton) {
++                this.toggleButton.disabled = true;
++              }
++            }
++          }
++
++          createFaceMaterials() {
++            const materials = [];
++            const faceColors = ["#182033", "#1f2b42", "#23304d", "#1a2641", "#1c2b49", "#25385f"];
++            for (let i = 1; i <= 6; i += 1) {
++              const canvas = document.createElement("canvas");
++              canvas.width = 256;
++              canvas.height = 256;
++              const ctx = canvas.getContext("2d");
++              ctx.fillStyle = faceColors[i - 1];
++              ctx.fillRect(0, 0, 256, 256);
++              ctx.fillStyle = "#ffffff";
++              ctx.font = "bold 160px 'Inter', sans-serif";
++              ctx.textAlign = "center";
++              ctx.textBaseline = "middle";
++              ctx.fillText(String(i), 128, 140);
++              const texture = new THREE.CanvasTexture(canvas);
++              materials.push(new THREE.MeshStandardMaterial({ map: texture }));
++            }
++            return materials;
++          }
++
++          attachEvents() {
++            if (!this.container) return;
++            this.container.addEventListener("mouseenter", () => {
++              this.stop();
++              this.updateStatus("Pause (survol)");
++            });
++            this.container.addEventListener("mouseleave", () => {
++              if (!this.prefersReduced) {
++                this.start();
++              }
++            });
++            if (this.toggleButton) {
++              this.toggleButton.addEventListener("click", () => {
++                if (this.prefersReduced) {
++                  return;
++                }
++                if (this.animating) {
++                  this.stop();
++                } else {
++                  this.start();
++                }
++              });
++            }
++          }
++
++          updateStatus(text) {
++            if (!this.statusEl) return;
++            if (text) {
++              this.statusEl.textContent = text;
++              return;
++            }
++            this.statusEl.textContent = this.animating ? "Rotation" : "Statique";
++          }
++
++          updateToggleLabel() {
++            if (!this.toggleButton) return;
++            if (this.prefersReduced) {
++              this.toggleButton.textContent = "Motion réduite";
++              this.toggleButton.disabled = true;
++              this.toggleButton.setAttribute("aria-pressed", "false");
++              return;
++            }
++            this.toggleButton.disabled = false;
++            this.toggleButton.textContent = this.animating ? "Pause" : "Reprendre";
++            this.toggleButton.setAttribute("aria-pressed", this.animating ? "true" : "false");
++          }
++
++          start() {
++            if (this.prefersReduced) {
++              this.animating = false;
++              this.updateToggleLabel();
++              return;
++            }
++            if (this.animating || !this.renderer) return;
++            this.animating = true;
++            this.updateStatus();
++            this.updateToggleLabel();
++            const animate = () => {
++              if (!this.animating) return;
++              if (this.cube) {
++                this.cube.rotation.x += 0.01;
++                this.cube.rotation.y += 0.015;
++              }
++              this.renderer.render(this.scene, this.camera);
++              this.animationFrame = requestAnimationFrame(animate);
++            };
++            this.animationFrame = requestAnimationFrame(animate);
++          }
++
++          stop() {
++            if (!this.animating) {
++              this.updateToggleLabel();
++              return;
++            }
++            this.animating = false;
++            this.updateToggleLabel();
++            this.updateStatus();
++            if (this.animationFrame) {
++              cancelAnimationFrame(this.animationFrame);
++              this.animationFrame = null;
++            }
++          }
++
++          onResize() {
++            if (!this.renderer || !this.camera) return;
++            const width = this.container.clientWidth;
++            const height = this.container.clientHeight;
++            this.renderer.setSize(width, height);
++            this.camera.aspect = width / height;
++            this.camera.updateProjectionMatrix();
++            this.renderer.render(this.scene, this.camera);
++          }
++        }
++
++        return Dice3D;
++      })();
++
++      const UI = (() => {
++        class UIController {
++          constructor() {
++            this.elements = {
++              diceCount: document.getElementById("diceCount"),
++              coinRadios: document.querySelectorAll('input[name="coinType"]'),
++              biasControls: document.getElementById("biasControls"),
++              biasSlider: document.getElementById("biasSlider"),
++              biasValue: document.getElementById("biasValue"),
++              debiasToggle: document.getElementById("debiasToggle"),
++              displayMode: document.getElementById("displayMode"),
++              simulationCount: document.getElementById("simulationCount"),
++              runSimulation: document.getElementById("runSimulation"),
++              statsTableBody: document.getElementById("statsTableBody"),
++              legendBar: document.getElementById("legendBar"),
++              legendMin: document.getElementById("legendMin"),
++              legendMax: document.getElementById("legendMax"),
++              statSummary: document.getElementById("statSummary"),
++              statusMessage: document.getElementById("statusMessage"),
++              debiasWarning: document.getElementById("debiasWarning"),
++              presetButtons: document.querySelectorAll(".preset-btn"),
++              treeLoader: document.getElementById("treeLoader"),
++              exportSvg: document.getElementById("exportSvg"),
++              themeToggle: document.getElementById("themeToggle"),
++              treeContainer: document.getElementById("tree-container"),
++            };
++            this.treeView = new TreeViewD3("#probabilityTree", "#tooltip");
++            const threeContainer = document.getElementById("threeContainer");
++            const threeStatus = document.getElementById("threeStatus");
++            const toggleRotation = document.getElementById("toggleRotation");
++            this.dice3D = new Dice3D(threeContainer, threeStatus, toggleRotation);
++            this.theme = localStorage.getItem("theme") || "dark";
++            if (this.theme === "light") {
++              document.body.classList.add("light-theme");
++              this.elements.themeToggle.checked = true;
++            }
++            this.bindEvents();
++            this.loadPreset("a", false);
++            this.runSimulation();
++          }
++
++          bindEvents() {
++            this.elements.diceCount.addEventListener("change", () => this.handleDiceChange());
++            this.elements.coinRadios.forEach((radio) => radio.addEventListener("change", () => this.handleCoinChange()));
++            this.elements.biasSlider.addEventListener("input", (event) => this.handleBiasInput(event));
++            this.elements.debiasToggle.addEventListener("change", () => this.handleDebiasChange());
++            this.elements.runSimulation.addEventListener("click", () => this.runSimulation());
++            this.elements.presetButtons.forEach((button) => button.addEventListener("click", (event) => {
++              const preset = event.currentTarget.getAttribute("data-preset");
++              this.loadPreset(preset, true);
++            }));
++            this.elements.exportSvg.addEventListener("click", () => this.exportTree());
++            this.elements.themeToggle.addEventListener("change", (event) => {
++              document.body.classList.toggle("light-theme", event.target.checked);
++              localStorage.setItem("theme", event.target.checked ? "light" : "dark");
++            });
++          }
++
++          handleDiceChange() {
++            const diceCount = Number(this.elements.diceCount.value);
++            const sumOption = Array.from(this.elements.displayMode.options).find((option) => option.value === "sum");
++            if (diceCount === 2) {
++              sumOption.disabled = false;
++            } else {
++              sumOption.disabled = true;
++              this.elements.displayMode.value = "full";
++            }
++          }
++
++          handleCoinChange() {
++            const coinType = this.getCoinType();
++            const showBias = coinType === "biased";
++            this.elements.biasControls.classList.toggle("hidden", !showBias);
++            if (!showBias) {
++              this.elements.debiasToggle.checked = false;
++              this.elements.biasSlider.value = "0.5";
++              this.elements.biasSlider.setAttribute("aria-valuenow", "0.5");
++              this.elements.biasValue.textContent = "0,50";
++            } else {
++              this.elements.debiasToggle.checked = true;
++            }
++            this.updateWarning();
++          }
++
++          handleBiasInput(event) {
++            const value = Number(event.target.value);
++            event.target.setAttribute("aria-valuenow", value.toFixed(2));
++            this.elements.biasValue.textContent = value.toFixed(2).replace(".", ",");
++            this.updateWarning();
++          }
++
++          handleDebiasChange() {
++            this.updateWarning();
++          }
++
++          updateWarning() {
++            const coinType = this.getCoinType();
++            const bias = Number(this.elements.biasSlider.value);
++            const debiasing = this.elements.debiasToggle.checked;
++            const warningVisible = coinType === "biased" && !debiasing;
++            this.elements.debiasWarning.classList.toggle("visible", warningVisible);
++            if (warningVisible) {
++              this.setStatus(`Attention : dé biaisé car p = ${bias.toFixed(2)}`);
++            } else if (this.elements.statusMessage.textContent.startsWith("Attention")) {
++              this.setStatus("");
++            }
++          }
++
++          getCoinType() {
++            const checked = Array.from(this.elements.coinRadios).find((radio) => radio.checked);
++            return checked ? checked.value : "fair";
++          }
++
++          async runSimulation() {
++            const diceCount = Number(this.elements.diceCount.value);
++            const coinType = this.getCoinType();
++            const bias = coinType === "biased" ? Number(this.elements.biasSlider.value) : 0.5;
++            const useDebiasing = coinType === "biased" ? this.elements.debiasToggle.checked : false;
++            const displayMode = this.elements.displayMode.value;
++            let sampleSize = Number(this.elements.simulationCount.value);
++            if (Number.isNaN(sampleSize) || sampleSize < 100) {
++              this.setStatus("Veuillez saisir un N supérieur ou égal à 100.");
++              return;
++            }
++            sampleSize = Math.min(sampleSize, 200000);
++            this.elements.simulationCount.value = sampleSize;
++            this.showLoader(true);
++            this.elements.runSimulation.disabled = true;
++            this.setStatus("Simulation en cours…");
++
++            try {
++              const theory = Stats.singleDie(bias, useDebiasing);
++              const distribution = theory.distribution;
++              let theoreticalOutcomes;
++              if (diceCount === 2) {
++                theoreticalOutcomes = Stats.twoDice(distribution, displayMode);
++              } else {
++                theoreticalOutcomes = Object.fromEntries(Object.entries(distribution).map(([face, probability]) => [String(face), probability]));
++              }
++
++              const simulator = new DieSimulator({ probability: bias, useDebiasing });
++              const counts = {};
++              const chunkSize = 1000;
++              const startTime = performance.now();
++              let processed = 0;
++              while (processed < sampleSize) {
++                const limit = Math.min(processed + chunkSize, sampleSize);
++                for (; processed < limit; processed += 1) {
++                  const first = simulator.rollDie();
++                  if (diceCount === 1) {
++                    const key = String(first);
++                    counts[key] = (counts[key] || 0) + 1;
++                  } else {
++                    const second = simulator.rollDie();
++                    if (displayMode === "sum") {
++                      const key = String(first + second);
++                      counts[key] = (counts[key] || 0) + 1;
++                    } else {
++                      const key = `${first},${second}`;
++                      counts[key] = (counts[key] || 0) + 1;
++                    }
++                  }
++                }
++                await new Promise((resolve) => requestAnimationFrame(resolve));
++              }
++              const duration = performance.now() - startTime;
++
++              const empirical = Stats.empiricalFromCounts(counts, sampleSize);
++              const formatter = (key) => {
++                if (key.includes(",")) {
++                  const [a, b] = key.split(",").map(Number);
++                  return a * 10 + b;
++                }
++                return Number(key);
++              };
++              const rows = Stats.mergeMetrics(theoreticalOutcomes, empirical, formatter);
++              const summary = Stats.describe(rows);
++
++              const treeData = this.buildTree({ diceCount, displayMode, theory });
++              const colorScaleInfo = this.createColorScale(rows);
++              this.treeView.render(treeData, colorScaleInfo);
++              this.renderStats(rows, sampleSize, duration, summary);
++              this.setStatus(`Simulation terminée (${sampleSize.toLocaleString("fr-FR")} essais).`);
++            } catch (error) {
++              console.error("Erreur pendant la simulation", error);
++              this.setStatus("Une erreur est survenue lors de la simulation.");
++            } finally {
++              this.showLoader(false);
++              this.elements.runSimulation.disabled = false;
++            }
++          }
++
++          buildTree({ diceCount, displayMode, theory }) {
++            if (diceCount === 1) {
++              return TreeBuilder.oneDie(theory);
++            }
++            if (displayMode === "sum") {
++              return TreeBuilder.twoDiceSum(theory.distribution);
++            }
++            return TreeBuilder.twoDicePairs(theory.distribution);
++          }
++
++          createColorScale(rows) {
++            const leafValues = rows.map((row) => row.theoretical);
++            const min = Math.min(...leafValues);
++            const max = Math.max(...leafValues);
++            const domainWidth = max - min;
++            const scale = domainWidth === 0
++              ? (() => {
++                const constantColor = d3.interpolateBlues(0.6);
++                const fn = () => constantColor;
++                fn.range = () => [constantColor];
++                return fn;
++              })()
++              : d3.scaleSequential().domain([min, max]).interpolator(d3.interpolateBlues).clamp(true);
++            this.updateLegend(scale, min, max);
++            return { scale, min, max, domainWidth };
++          }
++
++          updateLegend(scale, min, max) {
++            if (!this.elements.legendBar) return;
++            const steps = 6;
++            const colors = [];
++            for (let i = 0; i < steps; i += 1) {
++              const t = steps === 1 ? 0 : i / (steps - 1);
++              const value = min + t * (max - min);
++              const color = typeof scale === "function" ? scale(value) : "var(--accent)";
++              colors.push(`${color} ${(t * 100).toFixed(1)}%`);
++            }
++            this.elements.legendBar.style.background = `linear-gradient(90deg, ${colors.join(", ")})`;
++            this.elements.legendMin.textContent = formatPercent(min, 2);
++            this.elements.legendMax.textContent = formatPercent(max, 2);
++          }
++
++          renderStats(rows, sampleSize, duration, summary) {
++            const tbody = this.elements.statsTableBody;
++            tbody.innerHTML = "";
++            for (const row of rows) {
++              const tr = document.createElement("tr");
++              tr.innerHTML = `
++                <td>${row.outcome}</td>
++                <td>${formatPercent(row.theoretical, 4)}</td>
++                <td>${formatPercent(row.empirical, 4)}</td>
++                <td>${formatPercent(row.absolute, 4)}</td>
++                <td>${row.relative !== null ? (row.relative * 100).toFixed(2) + " %" : "–"}</td>
++              `;
++              tbody.appendChild(tr);
++            }
++            const summaryText = summary
++              ? `Écart absolu max : ${(summary.maxAbsolute * 100).toFixed(3)} %. Écart relatif max : ${(summary.maxRelative * 100).toFixed(2)} %. Distance totale de variation : ${(summary.totalVariation * 100).toFixed(3)} %.`
++              : "";
++            const runtimeText = `Monte Carlo : ${sampleSize.toLocaleString("fr-FR")} tirages en ${(duration / 1000).toFixed(2)} s.`;
++            this.elements.statSummary.textContent = summaryText ? `${summaryText} ${runtimeText}` : runtimeText;
++          }
++
++          loadPreset(preset, run = true) {
++            if (preset === "a") {
++              this.elements.diceCount.value = "1";
++              this.elements.displayMode.value = "full";
++              this.elements.simulationCount.value = 10000;
++              this.elements.coinRadios.forEach((radio) => {
++                radio.checked = radio.value === "fair";
++              });
++              this.elements.biasControls.classList.add("hidden");
++            } else if (preset === "b") {
++              this.elements.diceCount.value = "2";
++              this.handleDiceChange();
++              this.elements.displayMode.value = "full";
++              this.elements.simulationCount.value = 20000;
++              this.elements.coinRadios.forEach((radio) => {
++                radio.checked = radio.value === "biased";
++              });
++              this.elements.biasControls.classList.remove("hidden");
++              this.elements.biasSlider.value = "0.61";
++              this.elements.biasSlider.setAttribute("aria-valuenow", "0.61");
++              this.elements.biasValue.textContent = "0,61";
++              this.elements.debiasToggle.checked = true;
++            }
++            this.updateWarning();
++            if (run) {
++              this.runSimulation();
++            }
++          }
++
++          exportTree() {
++            const svgElement = document.getElementById("probabilityTree");
++            const serializer = new XMLSerializer();
++            const source = serializer.serializeToString(svgElement);
++            const svgBlob = new Blob([
++              `<?xml version="1.0" standalone="no"?>\n` +
++              `<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n` +
++              source,
++            ], { type: "image/svg+xml;charset=utf-8" });
++            const url = URL.createObjectURL(svgBlob);
++            const link = document.createElement("a");
++            link.href = url;
++            link.download = "arbre-probabilite.svg";
++            document.body.appendChild(link);
++            link.click();
++            document.body.removeChild(link);
++            URL.revokeObjectURL(url);
++          }
++
++          showLoader(visible) {
++            this.elements.treeLoader.classList.toggle("visible", visible);
++          }
++
++          setStatus(message) {
++            this.elements.statusMessage.textContent = message;
++          }
++        }
++
++        return UIController;
++      })();
++
++      document.addEventListener("DOMContentLoaded", () => {
++        new UI();
++      });
++
++      // Basic assertions to validate algorithms
++      (function runAssertions() {
++        const fairTheory = Stats.singleDie(0.5, false);
++        console.assert(Math.abs(fairTheory.distribution[1] - 1 / 6) < 1e-9, "Le dé équitable doit être uniforme.");
++        const biasedTheory = Stats.singleDie(0.7, false);
++        console.assert(Math.abs(biasedTheory.distribution[1] - biasedTheory.distribution[6]) > 1e-3, "Sans débiaisage, les extrêmes diffèrent.");
++        const debiasedTheory = Stats.singleDie(0.7, true);
++        console.assert(Math.abs(debiasedTheory.distribution[1] - 1 / 6) < 1e-6, "Le débiaisage rétablit l'uniformité.");
++      })();
++    })();
++  </script>
++</body>
++</html>
