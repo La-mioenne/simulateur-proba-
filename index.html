@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulateur de dés via lancers de pièces</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js" defer></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1115;
+      --surface: #161a22;
+      --surface-soft: #1d2230;
+      --text: #e7ecff;
+      --text-muted: #b5bddb;
+      --accent: #3d6dff;
+      --accent-soft: rgba(61, 109, 255, 0.18);
+      --border: rgba(255, 255, 255, 0.08);
+      --shadow: 0 20px 40px rgba(9, 12, 20, 0.45);
+      --radius: 16px;
+      --transition: 220ms ease;
+      --focus: 0 0 0 3px rgba(61, 109, 255, 0.45);
+    }
+
+    [data-theme="light"] {
+      color-scheme: light;
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --surface-soft: #eef2ff;
+      --text: #0f1115;
+      --text-muted: #394168;
+      --accent: #2f54eb;
+      --accent-soft: rgba(47, 84, 235, 0.12);
+      --border: rgba(17, 24, 39, 0.08);
+      --shadow: 0 20px 40px rgba(15, 17, 21, 0.12);
+      --focus: 0 0 0 3px rgba(47, 84, 235, 0.35);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.5;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 32px clamp(1rem, 4vw, 64px) 16px;
+      position: relative;
+    }
+
+    header::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0 0;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .hero {
+      max-width: 680px;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2.3rem, 3vw, 3.2rem);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 1.45rem;
+      font-weight: 600;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      padding: 10px 18px;
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .switch {
+      position: relative;
+      width: 48px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      outline: none;
+      transition: background var(--transition);
+    }
+
+    .switch::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 4px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      transform: translate(0, -50%);
+      transition: transform var(--transition);
+    }
+
+    .switch[aria-checked="true"]::after {
+      transform: translate(24px, -50%);
+    }
+
+    main {
+      flex: 1;
+      padding: 24px clamp(1rem, 4vw, 64px) 48px;
+      display: grid;
+      grid-template-columns: minmax(260px, 320px) 1fr;
+      gap: 32px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .panel h2 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text);
+    }
+
+    .controls {
+      display: grid;
+      gap: 18px;
+    }
+
+    label span {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field input[type="number"],
+    .field select,
+    .field input[type="range"] {
+      width: 100%;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      transition: border var(--transition), box-shadow var(--transition), background var(--transition);
+    }
+
+    .field input[type="range"] {
+      padding: 0;
+      accent-color: var(--accent);
+    }
+
+    .field input[type="number"]:focus,
+    .field select:focus {
+      outline: none;
+      box-shadow: var(--focus);
+      border-color: var(--accent);
+      background: var(--surface-soft);
+    }
+
+    .radio-group,
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .radio-item,
+    .checkbox-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      transition: border var(--transition), transform var(--transition);
+    }
+
+    .radio-item:focus-within,
+    .checkbox-item:focus-within {
+      border-color: var(--accent);
+      box-shadow: var(--focus);
+    }
+
+    .radio-item:hover,
+    .checkbox-item:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+    }
+
+    .radio-item input,
+    .checkbox-item input {
+      margin-top: 2px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 18px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
+      text-decoration: none;
+    }
+
+    .btn.secondary {
+      background: transparent;
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(61, 109, 255, 0.35);
+    }
+
+    .btn:focus {
+      outline: none;
+      box-shadow: var(--focus);
+    }
+
+    .warning {
+      background: rgba(255, 165, 0, 0.1);
+      color: #ffce6f;
+      border-radius: 12px;
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 165, 0, 0.3);
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .warning.active {
+      display: block;
+    }
+
+    .help-card {
+      background: var(--surface-soft);
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      display: grid;
+      gap: 8px;
+    }
+
+    .help-card strong {
+      color: var(--text);
+    }
+
+    .visual-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .visual-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      position: relative;
+      min-height: 420px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .visual-card header {
+      padding: 0;
+      margin-bottom: 16px;
+      border: none;
+      box-shadow: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .visual-card header::after {
+      display: none;
+    }
+
+    .visual-card h2 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .tree-container {
+      position: relative;
+      flex: 1;
+      min-height: 320px;
+    }
+
+    .tree-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(15, 17, 21, 0.92);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transition: opacity 120ms ease;
+    }
+
+    [data-theme="light"] .tooltip {
+      background: rgba(240, 242, 250, 0.92);
+      color: #111;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    tbody tr:hover {
+      background: var(--surface-soft);
+    }
+
+    .stat-positive {
+      color: #5eead4;
+    }
+
+    .stat-negative {
+      color: #f87171;
+    }
+
+    .loader {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(3px);
+      background: rgba(15, 17, 21, 0.65);
+      color: #fff;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition);
+      border-radius: var(--radius);
+    }
+
+    .loader.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-color {
+      width: 36px;
+      height: 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #3d6dff, #5eead4);
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+
+    .stats-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .stats-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    footer {
+      padding: 24px clamp(1rem, 4vw, 64px);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+      margin-top: auto;
+    }
+
+    .three-container {
+      width: 200px;
+      height: 140px;
+      border-radius: 18px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .three-actions {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      display: flex;
+      gap: 8px;
+      z-index: 2;
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.25);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background var(--transition), transform var(--transition);
+    }
+
+    .icon-btn:hover {
+      background: rgba(61, 109, 255, 0.55);
+      transform: translateY(-1px);
+    }
+
+    .icon-btn:focus {
+      outline: none;
+      box-shadow: var(--focus);
+    }
+
+    .tree-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .info-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      padding: 12px;
+      border-radius: 12px;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+    }
+
+    .info-strip strong {
+      color: var(--text);
+    }
+
+    .three-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .preset-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 1080px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 24px;
+      }
+
+      .three-wrapper {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .three-container {
+        width: 180px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .three-container {
+        width: 160px;
+        height: 120px;
+      }
+
+      .actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      header {
+        padding: 24px 18px 12px;
+      }
+
+      main {
+        padding: 18px;
+      }
+
+      footer {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="hero" role="presentation">
+      <h1>Simulateur de dés par pièces biaisées</h1>
+      <p class="subtitle">Générez un dé parfaitement équilibré à partir de lancers de pièces, explorez les arbres de probabilités et comparez théorie et Monte Carlo.</p>
+    </div>
+    <div class="three-wrapper">
+      <div class="theme-toggle" role="switch" aria-checked="false" tabindex="0" id="theme-switch">
+        <span aria-hidden="true">🌙</span>
+        <div class="switch" aria-hidden="true"></div>
+        <span aria-hidden="true">☀️</span>
+      </div>
+      <div class="three-container" aria-label="Animation 3D d'un dé" id="three-root">
+        <div class="three-actions">
+          <button class="icon-btn" id="three-toggle" aria-label="Pause ou lecture de l'animation 3D">
+            ▶
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" aria-label="Panneau de configuration">
+      <h2>Paramètres</h2>
+      <div class="controls">
+        <div class="field">
+          <label for="dice-count"><span>Nombre de dés</span></label>
+          <select id="dice-count" aria-label="Sélectionner le nombre de dés">
+            <option value="1">1 dé</option>
+            <option value="2">2 dés</option>
+          </select>
+        </div>
+
+        <fieldset class="field" aria-labelledby="coin-choice-label">
+          <legend id="coin-choice-label" class="section-title">Pièce</legend>
+          <div class="radio-group" role="radiogroup" aria-label="Type de pièce">
+            <label class="radio-item">
+              <input type="radio" name="coin-type" value="fair" checked>
+              <div>
+                <strong>Équitable</strong>
+                <p>p(Tête) = 0,5 – idéal pour un dé parfait.</p>
+              </div>
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="coin-type" value="biased">
+              <div>
+                <strong>Biaisée</strong>
+                <p>Choisissez la probabilité de Tête et optionnellement débiaisez.</p>
+              </div>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="field" id="bias-field" hidden>
+          <label for="bias-slider"><span>Probabilité de Tête <span id="bias-value">0.61</span></span></label>
+          <input type="range" id="bias-slider" min="0.05" max="0.95" step="0.01" value="0.61" aria-valuemin="0.05" aria-valuemax="0.95" aria-valuenow="0.61" aria-label="Probabilité de tirer Tête">
+        </div>
+
+        <div class="checkbox-group" id="debias-field" hidden>
+          <label class="checkbox-item">
+            <input type="checkbox" id="debias-toggle" checked>
+            <div>
+              <strong>Débiaisage de von Neumann</strong>
+              <p>Transforme les tirages biaisés en bits équitables via couples HT/TH.</p>
+            </div>
+          </label>
+          <p class="warning" id="debias-warning">⚠️ Sans débiaisage, une pièce biaisée ne produit pas un dé juste.</p>
+        </div>
+
+        <div class="field" id="view-mode-field">
+          <label for="view-mode"><span>Affichage</span></label>
+          <select id="view-mode" aria-label="Mode d'affichage de l'arbre">
+            <option value="full">Arbre complet</option>
+            <option value="sum">Somme des deux dés</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="simulation-count"><span>Nombre de simulations Monte Carlo</span></label>
+          <input type="number" id="simulation-count" min="100" max="1000000" step="100" value="10000" aria-label="Nombre de simulations Monte Carlo">
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="run-simulation">Lancer la simulation</button>
+          <button class="btn secondary" id="export-svg">Exporter SVG</button>
+        </div>
+
+        <div class="preset-group" aria-label="Presets de configuration">
+          <button class="btn secondary" data-preset="A">Charger Preset A · 1 dé, pièce équitable, N = 10 000</button>
+          <button class="btn secondary" data-preset="B">Charger Preset B · 2 dés, pièce biaisée p = 0,61, débiaisage, N = 20 000</button>
+        </div>
+
+        <div class="help-card" aria-live="polite">
+          <div>
+            <strong>Méthode von Neumann</strong>
+            <p>Lancez la pièce deux fois : HT → bit 1, TH → bit 0. HH ou TT sont rejetés et on recommence.</p>
+          </div>
+          <div>
+            <strong>Méthode de rejet</strong>
+            <p>Trois bits donnent 0..7. On mappe 0..5 → faces 1..6 et on relance si 6 ou 7 apparaissent.</p>
+          </div>
+          <div>
+            <strong>Équité</strong>
+            <p>Avec débiaisage actif, les résultats sont uniformes même si la pièce est biaisée.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="visual-panel" aria-label="Résultats et visualisations">
+      <div class="visual-card">
+        <header>
+          <h2>Arbre de probabilité</h2>
+          <div class="info-strip" id="info-strip">
+            <span><strong>p<sub>rejet</sub></strong> : <span id="reject-prob">0</span></span>
+            <span><strong>Distribution</strong> : <span id="distribution-type">Uniforme</span></span>
+            <span><strong>Mode</strong> : <span id="mode-info">1 dé</span></span>
+          </div>
+        </header>
+        <div class="tree-actions">
+          <span class="legend-item"><span class="legend-color"></span> Probabilité des feuilles</span>
+        </div>
+        <div class="tree-container" id="tree-container" aria-live="polite"></div>
+        <div class="loader" id="loader" aria-hidden="true">Simulation...</div>
+      </div>
+
+      <div class="stats-card">
+        <h2>Probabilités théoriques vs Monte Carlo</h2>
+        <div class="stats-grid">
+          <table aria-describedby="stats-caption">
+            <caption id="stats-caption" class="sr-only">Comparaison des probabilités théoriques et simulées</caption>
+            <thead>
+              <tr>
+                <th>Issue</th>
+                <th>Théorie</th>
+                <th>Monte Carlo</th>
+                <th>Écart absolu</th>
+                <th>Écart relatif</th>
+              </tr>
+            </thead>
+            <tbody id="stats-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Simulation par lancers de pièces · Méthodes exactes et Monte Carlo. Animation 3D via Three.js, visualisation via D3.js.</p>
+  </footer>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const qs = (selector, scope = document) => scope.querySelector(selector);
+      const qsa = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
+
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const Utils = {
+        createId: (() => {
+          let id = 0;
+          return (prefix = 'node') => `${prefix}-${++id}`;
+        })(),
+        sum(values) {
+          return values.reduce((acc, val) => acc + val, 0);
+        },
+        download(filename, content, type = 'image/svg+xml') {
+          const blob = new Blob([content], { type });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+        },
+        formatProb(value) {
+          if (!Number.isFinite(value)) return '—';
+          return (value * 100).toLocaleString('fr-FR', { maximumFractionDigits: 4 }) + ' %';
+        },
+        prefersReducedMotion() {
+          return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        }
+      };
+
+      const CoinModel = (() => {
+        class CoinModel {
+          constructor(bias = 0.5) {
+            this.bias = clamp(bias, 0.0001, 0.9999);
+          }
+
+          flip() {
+            return Math.random() < this.bias ? 1 : 0;
+          }
+
+          static theoreticalBitProbabilities(bias, useDebiasing) {
+            if (useDebiasing) {
+              return { zero: 0.5, one: 0.5, rejectPair: (bias ** 2 + (1 - bias) ** 2) };
+            }
+            return { zero: 1 - bias, one: bias, rejectPair: 0 };
+          }
+
+          static vonNeumannBit(bias) {
+            while (true) {
+              const a = Math.random() < bias ? 1 : 0;
+              const b = Math.random() < bias ? 1 : 0;
+              if (a !== b) {
+                return a === 1 ? 1 : 0;
+              }
+            }
+          }
+
+          static generateBit({ bias, useDebiasing }) {
+            if (useDebiasing) {
+              return CoinModel.vonNeumannBit(bias);
+            }
+            return Math.random() < bias ? 1 : 0;
+          }
+        }
+        return CoinModel;
+      })();
+
+      const DieSimulator = (() => {
+        class DieSimulator {
+          constructor({ bias = 0.5, useDebiasing = false } = {}) {
+            this.bias = bias;
+            this.useDebiasing = useDebiasing;
+          }
+
+          rollOnce() {
+            while (true) {
+              const b1 = CoinModel.generateBit({ bias: this.bias, useDebiasing: this.useDebiasing });
+              const b2 = CoinModel.generateBit({ bias: this.bias, useDebiasing: this.useDebiasing });
+              const b3 = CoinModel.generateBit({ bias: this.bias, useDebiasing: this.useDebiasing });
+              const value = (b1 << 2) + (b2 << 1) + b3;
+              if (value < 6) {
+                return value + 1;
+              }
+            }
+          }
+
+          rollMultiple(count = 1) {
+            const results = [];
+            for (let i = 0; i < count; i++) {
+              results.push(this.rollOnce());
+            }
+            return results;
+          }
+        }
+        return DieSimulator;
+      })();
+
+      const Stats = (() => {
+        class Stats {
+          static theoreticalSingleDie({ bias, useDebiasing }) {
+            if (useDebiasing || Math.abs(bias - 0.5) < 1e-9) {
+              return Array.from({ length: 6 }, (_, i) => ({ face: i + 1, probability: 1 / 6 }));
+            }
+            const combos = [
+              [0, 0, 0],
+              [0, 0, 1],
+              [0, 1, 0],
+              [0, 1, 1],
+              [1, 0, 0],
+              [1, 0, 1],
+              [1, 1, 0],
+              [1, 1, 1]
+            ];
+            const pHead = bias;
+            const pTail = 1 - bias;
+            const probabilities = combos.map(bits => bits.reduce((acc, bit) => acc * (bit === 1 ? pHead : pTail), 1));
+            const rejectProb = probabilities[6] + probabilities[7];
+            const successProb = 1 - rejectProb;
+            return probabilities.slice(0, 6).map((prob, index) => ({ face: index + 1, probability: prob / successProb }));
+          }
+
+          static theoreticalTwoDice({ bias, useDebiasing }) {
+            const single = Stats.theoreticalSingleDie({ bias, useDebiasing });
+            const distribution = new Map();
+            single.forEach(d1 => {
+              single.forEach(d2 => {
+                const key = `${d1.face},${d2.face}`;
+                distribution.set(key, (distribution.get(key) || 0) + d1.probability * d2.probability);
+              });
+            });
+            return distribution;
+          }
+
+          static theoreticalSum({ bias, useDebiasing }) {
+            const pairs = Stats.theoreticalTwoDice({ bias, useDebiasing });
+            const result = new Map();
+            pairs.forEach((prob, key) => {
+              const [a, b] = key.split(',').map(Number);
+              const sum = a + b;
+              result.set(sum, (result.get(sum) || 0) + prob);
+            });
+            return result;
+          }
+
+          static rejectionProbability({ bias, useDebiasing }) {
+            if (useDebiasing || Math.abs(bias - 0.5) < 1e-9) {
+              return 2 / 8;
+            }
+            const combos = [
+              [1, 1, 0],
+              [1, 1, 1]
+            ];
+            const pHead = bias;
+            const pTail = 1 - bias;
+            return combos
+              .map(bits => bits.reduce((acc, bit) => acc * (bit === 1 ? pHead : pTail), 1))
+              .reduce((a, b) => a + b, 0);
+          }
+
+          static monteCarlo({ bias, useDebiasing, diceCount, simulations, aggregateSum }) {
+            const die = new DieSimulator({ bias, useDebiasing });
+            const counts = new Map();
+            for (let i = 0; i < simulations; i++) {
+              if (diceCount === 1) {
+                const value = die.rollOnce();
+                counts.set(String(value), (counts.get(String(value)) || 0) + 1);
+              } else {
+                const [a, b] = die.rollMultiple(2);
+                if (aggregateSum) {
+                  const sum = a + b;
+                  counts.set(String(sum), (counts.get(String(sum)) || 0) + 1);
+                } else {
+                  const key = `${a},${b}`;
+                  counts.set(key, (counts.get(key) || 0) + 1);
+                }
+              }
+            }
+            return counts;
+          }
+
+          static compare({ theoretical, empirical, simulations }) {
+            const rows = [];
+            theoretical.forEach((prob, key) => {
+              const stringKey = String(key);
+              const empiricalCount = empirical.get(stringKey) ?? empirical.get(key) ?? 0;
+              const empiricalProb = empiricalCount / simulations;
+              const diff = Math.abs(empiricalProb - prob);
+              const rel = prob === 0 ? 0 : diff / prob;
+              rows.push({ key, theoretical: prob, empirical: empiricalProb, diff, rel });
+            });
+            return rows;
+          }
+        }
+        return Stats;
+      })();
+
+      const TreeBuilder = (() => {
+        class TreeBuilder {
+          constructor({ bias, useDebiasing, diceCount, viewMode }) {
+            this.bias = bias;
+            this.useDebiasing = useDebiasing;
+            this.diceCount = diceCount;
+            this.viewMode = viewMode;
+            this.rejectProbability = Stats.rejectionProbability({ bias, useDebiasing });
+            this.singleDistribution = Stats.theoreticalSingleDie({ bias, useDebiasing });
+          }
+
+          build() {
+            if (this.diceCount === 1) {
+              return this.buildSingleDieTree();
+            }
+            return this.buildTwoDiceTree();
+          }
+
+          buildSingleDieTree() {
+            const root = this.createNode('Algorithme', 1, 1);
+            const attempt = this.createNode('Tentative', 1, 1);
+            root.children.push(attempt);
+
+            const combosNode = this.createNode('Combinaisons (3 bits)');
+            attempt.children.push(combosNode);
+
+            const probabilities = CoinModel.theoreticalBitProbabilities(this.bias, this.useDebiasing);
+            const combos = [
+              { bits: '000', value: 0 },
+              { bits: '001', value: 1 },
+              { bits: '010', value: 2 },
+              { bits: '011', value: 3 },
+              { bits: '100', value: 4 },
+              { bits: '101', value: 5 },
+              { bits: '110', value: 6 },
+              { bits: '111', value: 7 }
+            ];
+
+            combos.forEach(combo => {
+              const bits = combo.bits.split('');
+              const prob = bits.reduce((acc, bit) => acc * (bit === '1' ? probabilities.one : probabilities.zero), 1);
+              const comboNode = this.createNode(`Bits ${combo.bits}`, prob, prob);
+              comboNode.bits = combo.bits;
+              const leaf = this.createNode(
+                combo.value < 6 ? `Face ${combo.value + 1}` : 'Rejet (relance)',
+                1,
+                prob
+              );
+              leaf.bits = combo.bits;
+              if (combo.value < 6) {
+                const theoretical = this.singleDistribution.find(f => f.face === combo.value + 1);
+                leaf.finalProbability = theoretical ? theoretical.probability : 0;
+              } else {
+                leaf.finalProbability = prob;
+              }
+              comboNode.children.push(leaf);
+              combosNode.children.push(comboNode);
+            });
+
+            return root;
+          }
+
+          buildTwoDiceTree() {
+            const root = this.createNode('Deux dés', 1, 1);
+            const die1Node = this.createNode('Dé 1');
+            root.children.push(die1Node);
+            const distribution = this.singleDistribution;
+
+            distribution.forEach(face1 => {
+              const child = this.createNode(`Face ${face1.face}`, face1.probability, face1.probability);
+              child.finalProbability = face1.probability;
+              die1Node.children.push(child);
+
+              const die2Node = this.createNode('Dé 2', 1, face1.probability);
+              child.children.push(die2Node);
+
+              distribution.forEach(face2 => {
+                const pairProb = face1.probability * face2.probability;
+                const label = `(${face1.face}, ${face2.face})`;
+                const leaf = this.createNode(label, face2.probability, pairProb);
+                leaf.finalProbability = pairProb;
+                leaf.pair = [face1.face, face2.face];
+                if (this.viewMode === 'sum') {
+                  leaf.sum = face1.face + face2.face;
+                }
+                die2Node.children.push(leaf);
+              });
+            });
+
+            if (this.viewMode === 'sum') {
+              return this.aggregateSums();
+            }
+
+            return root;
+          }
+
+          aggregateSums() {
+            const root = this.createNode('Somme des deux dés', 1, 1);
+            const pairDistribution = Stats.theoreticalTwoDice({ bias: this.bias, useDebiasing: this.useDebiasing });
+            const sums = new Map();
+            pairDistribution.forEach((prob, key) => {
+              const [a, b] = key.split(',').map(Number);
+              const sum = a + b;
+              if (!sums.has(sum)) {
+                sums.set(sum, []);
+              }
+              sums.get(sum).push({ pair: [a, b], probability: prob });
+            });
+            const sortedSums = Array.from(sums.entries()).sort((a, b) => a[0] - b[0]);
+            sortedSums.forEach(([sum, entries]) => {
+              const total = entries.reduce((acc, item) => acc + item.probability, 0);
+              const node = this.createNode(`Somme ${sum}`, total, total);
+              node.finalProbability = total;
+              node.children = entries.map(entry => ({
+                id: Utils.createId('leaf'),
+                label: `(${entry.pair[0]}, ${entry.pair[1]})`,
+                pLocal: entry.probability / total,
+                pCumul: entry.probability,
+                finalProbability: entry.probability,
+                children: []
+              }));
+              root.children.push(node);
+            });
+            return root;
+          }
+
+          createNode(label, pLocal = 1, pCumul = 1) {
+            return {
+              id: Utils.createId('node'),
+              label,
+              pLocal,
+              pCumul,
+              children: [],
+              finalProbability: pCumul
+            };
+          }
+        }
+        return TreeBuilder;
+      })();
+
+      const TreeViewD3 = (() => {
+        class TreeViewD3 {
+          constructor(container) {
+            this.container = container;
+            this.width = this.container.clientWidth;
+            this.height = Math.max(this.container.clientHeight, 420);
+            this.svg = d3.create('svg')
+              .attr('class', 'tree-svg')
+              .attr('role', 'img')
+              .attr('aria-label', "Arbre de probabilité");
+            this.container.innerHTML = '';
+            this.container.appendChild(this.svg.node());
+            this.tooltip = document.createElement('div');
+            this.tooltip.className = 'tooltip';
+            this.container.appendChild(this.tooltip);
+            window.addEventListener('resize', () => this.handleResize());
+          }
+
+          handleResize() {
+            this.width = this.container.clientWidth;
+            this.height = Math.max(this.container.clientHeight, 420);
+            if (this.currentData) {
+              this.render(this.currentData);
+            }
+          }
+
+          formatTooltip(d) {
+            const pLocal = Utils.formatProb(d.data.pLocal || d.data.finalProbability || 0);
+            const pCumul = Utils.formatProb(d.data.finalProbability ?? d.data.pCumul ?? 0);
+            return `<strong>${d.data.label}</strong><br>p<sub>locale</sub> = ${pLocal}<br>p<sub>finale</sub> = ${pCumul}`;
+          }
+
+          render(data) {
+            this.currentData = data;
+            const root = d3.hierarchy(data);
+            const treeLayout = d3.tree().size([this.height - 40, this.width - 120]);
+            treeLayout(root);
+
+            this.svg
+              .attr('viewBox', [0, 0, this.width, this.height].join(' '))
+              .attr('width', '100%')
+              .attr('height', '100%');
+
+            this.svg.selectAll('*').remove();
+
+            const g = this.svg.append('g').attr('transform', 'translate(60,20)');
+
+            g.append('g')
+              .attr('fill', 'none')
+              .attr('stroke', 'rgba(255,255,255,0.2)')
+              .attr('stroke-width', 1.2)
+              .selectAll('path')
+              .data(root.links())
+              .join('path')
+              .attr('d', d3.linkHorizontal()
+                .x(d => d.y)
+                .y(d => d.x)
+              );
+
+            const leaves = root.descendants().filter(d => !d.children);
+            const minProb = d3.min(leaves, d => d.data.finalProbability || d.data.pCumul || 0) || 0;
+            const maxProb = d3.max(leaves, d => d.data.finalProbability || d.data.pCumul || 0) || 1;
+            const colorScale = d3.scaleSequential(d3.interpolateCool).domain([minProb, maxProb || 1e-6]);
+
+            const node = g.append('g')
+              .attr('stroke-linejoin', 'round')
+              .attr('stroke-width', 1)
+              .selectAll('g')
+              .data(root.descendants())
+              .join('g')
+              .attr('transform', d => `translate(${d.y},${d.x})`);
+
+            node.append('circle')
+              .attr('fill', d => d.children ? 'var(--surface-soft)' : colorScale(d.data.finalProbability || d.data.pCumul || 0))
+              .attr('stroke', d => d.children ? 'var(--border)' : 'rgba(255,255,255,0.3)')
+              .attr('r', d => d.children ? 10 : 8)
+              .on('mouseenter', (event, d) => {
+                this.tooltip.innerHTML = this.formatTooltip(d);
+                this.tooltip.style.opacity = '1';
+              })
+              .on('mousemove', (event) => {
+                const bounds = this.container.getBoundingClientRect();
+                this.tooltip.style.left = `${event.clientX - bounds.left + 12}px`;
+                this.tooltip.style.top = `${event.clientY - bounds.top + 12}px`;
+              })
+              .on('mouseleave', () => {
+                this.tooltip.style.opacity = '0';
+              });
+
+            node.append('text')
+              .attr('dy', '0.31em')
+              .attr('x', d => d.children ? -16 : 16)
+              .attr('text-anchor', d => d.children ? 'end' : 'start')
+              .attr('fill', 'currentColor')
+              .attr('font-size', '0.85rem')
+              .text(d => d.data.label);
+          }
+
+          exportSVG(filename = 'arbre-probabilite.svg') {
+            const serializer = new XMLSerializer();
+            const svgString = serializer.serializeToString(this.svg.node());
+            Utils.download(filename, svgString, 'image/svg+xml;charset=utf-8');
+          }
+        }
+        return TreeViewD3;
+      })();
+
+      const Dice3D = (() => {
+        class Dice3D {
+          constructor(container) {
+            this.container = container;
+            this.width = container.clientWidth;
+            this.height = container.clientHeight;
+            this.scene = new THREE.Scene();
+            this.camera = new THREE.PerspectiveCamera(45, this.width / this.height, 0.1, 100);
+            this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            this.renderer.setSize(this.width, this.height);
+            this.renderer.setPixelRatio(window.devicePixelRatio);
+            this.container.appendChild(this.renderer.domElement);
+            this.clock = new THREE.Clock();
+            this.isPaused = Utils.prefersReducedMotion();
+            this.initScene();
+            window.addEventListener('resize', () => this.onResize());
+            this.container.addEventListener('mouseenter', () => this.pause());
+            this.container.addEventListener('mouseleave', () => this.resume());
+            if (!this.isPaused) {
+              this.animate();
+            } else {
+              this.render();
+            }
+          }
+
+          initScene() {
+            this.camera.position.set(2.8, 2.2, 3.6);
+            this.camera.lookAt(0, 0, 0);
+
+            const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+            this.scene.add(ambient);
+            const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+            directional.position.set(5, 6, 4);
+            this.scene.add(directional);
+
+            const geometry = new THREE.BoxGeometry(1.4, 1.4, 1.4);
+            const materials = this.createDieMaterials();
+            this.cube = new THREE.Mesh(geometry, materials);
+            this.scene.add(this.cube);
+
+            const planeGeometry = new THREE.PlaneGeometry(6, 6);
+            const planeMaterial = new THREE.MeshBasicMaterial({ color: 0x182032, transparent: true, opacity: 0.45, side: THREE.DoubleSide });
+            const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+            plane.rotation.x = -Math.PI / 2;
+            plane.position.y = -1.2;
+            this.scene.add(plane);
+          }
+
+          createDieMaterials() {
+            const faces = [1, 2, 3, 4, 5, 6];
+            return faces.map(num => {
+              const canvas = document.createElement('canvas');
+              canvas.width = 256;
+              canvas.height = 256;
+              const ctx = canvas.getContext('2d');
+              ctx.fillStyle = '#10131b';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.fillStyle = '#3d6dff';
+              ctx.strokeStyle = '#3d6dff';
+              ctx.lineWidth = 8;
+              ctx.strokeRect(12, 12, 232, 232);
+              ctx.fillStyle = '#ffffff';
+              ctx.font = 'bold 160px Inter';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(String(num), canvas.width / 2, canvas.height / 2);
+              const texture = new THREE.CanvasTexture(canvas);
+              texture.anisotropy = 8;
+              return new THREE.MeshStandardMaterial({ map: texture, roughness: 0.35, metalness: 0.15 });
+            });
+          }
+
+          animate() {
+            if (this.isPaused) return;
+            requestAnimationFrame(() => this.animate());
+            const elapsed = this.clock.getElapsedTime();
+            this.cube.rotation.x = elapsed * 0.5;
+            this.cube.rotation.y = elapsed * 0.7;
+            this.cube.rotation.z = elapsed * 0.4;
+            this.render();
+          }
+
+          render() {
+            this.renderer.render(this.scene, this.camera);
+          }
+
+          pause() {
+            this.isPaused = true;
+            this.container.dispatchEvent(new CustomEvent('dice3d:pause'));
+          }
+
+          resume() {
+            if (Utils.prefersReducedMotion()) return;
+            if (!this.isPaused) return;
+            this.isPaused = false;
+            this.container.dispatchEvent(new CustomEvent('dice3d:resume'));
+            this.animate();
+          }
+
+          onResize() {
+            const { clientWidth, clientHeight } = this.container;
+            this.width = clientWidth;
+            this.height = clientHeight;
+            this.camera.aspect = this.width / this.height;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(this.width, this.height);
+            this.render();
+          }
+        }
+        return Dice3D;
+      })();
+
+      const UI = (() => {
+        class UI {
+          constructor() {
+            this.elements = {
+              diceCount: qs('#dice-count'),
+              coinTypeRadios: qsa('input[name="coin-type"]'),
+              biasField: qs('#bias-field'),
+              biasSlider: qs('#bias-slider'),
+              biasValue: qs('#bias-value'),
+              debiasField: qs('#debias-field'),
+              debiasToggle: qs('#debias-toggle'),
+              debiasWarning: qs('#debias-warning'),
+              simulationCount: qs('#simulation-count'),
+              runButton: qs('#run-simulation'),
+              exportButton: qs('#export-svg'),
+              treeContainer: qs('#tree-container'),
+              loader: qs('#loader'),
+              statsBody: qs('#stats-body'),
+              rejectProb: qs('#reject-prob'),
+              distributionType: qs('#distribution-type'),
+              modeInfo: qs('#mode-info'),
+              viewModeField: qs('#view-mode-field'),
+              viewMode: qs('#view-mode'),
+              presets: qsa('[data-preset]'),
+              themeSwitch: qs('#theme-switch'),
+              threeToggle: qs('#three-toggle')
+            };
+            this.state = {
+              bias: 0.5,
+              diceCount: 1,
+              coinType: 'fair',
+              useDebiasing: false,
+              viewMode: 'full'
+            };
+            this.treeView = new TreeViewD3(this.elements.treeContainer);
+            this.dice3D = new Dice3D(qs('#three-root'));
+            this.elements.threeToggle.textContent = this.dice3D.isPaused ? '▶' : '⏸';
+            qs('#three-root').addEventListener('dice3d:pause', () => {
+              this.elements.threeToggle.textContent = '▶';
+            });
+            qs('#three-root').addEventListener('dice3d:resume', () => {
+              this.elements.threeToggle.textContent = '⏸';
+            });
+            this.bindEvents();
+            this.applyTheme(localStorage.getItem('theme') || 'dark');
+            this.applyPreset('A');
+          }
+
+          bindEvents() {
+            this.elements.coinTypeRadios.forEach(radio => {
+              radio.addEventListener('change', () => {
+                this.state.coinType = radio.value;
+                const isBiased = this.state.coinType === 'biased';
+                this.elements.biasField.hidden = !isBiased;
+                this.elements.debiasField.hidden = !isBiased;
+                if (isBiased) {
+                  this.state.useDebiasing = this.elements.debiasToggle.checked = true;
+                } else {
+                  this.state.useDebiasing = false;
+                  this.elements.debiasToggle.checked = false;
+                  this.elements.debiasWarning.classList.remove('active');
+                }
+                this.update();
+              });
+            });
+
+            this.elements.biasSlider.addEventListener('input', () => {
+              const value = Number(this.elements.biasSlider.value);
+              this.elements.biasValue.textContent = value.toFixed(2);
+              this.elements.biasSlider.setAttribute('aria-valuenow', value.toFixed(2));
+              this.state.bias = value;
+              this.update();
+            });
+
+            this.elements.debiasToggle.addEventListener('change', () => {
+              this.state.useDebiasing = this.elements.debiasToggle.checked;
+              if (!this.state.useDebiasing && this.state.coinType === 'biased') {
+                this.elements.debiasWarning.classList.add('active');
+              } else {
+                this.elements.debiasWarning.classList.remove('active');
+              }
+              this.update();
+            });
+
+            this.elements.diceCount.addEventListener('change', () => {
+              this.state.diceCount = Number(this.elements.diceCount.value);
+              if (this.state.diceCount === 1) {
+                this.state.viewMode = 'full';
+                this.elements.viewMode.value = 'full';
+                this.elements.viewModeField.style.display = 'none';
+              } else {
+                this.elements.viewModeField.style.display = '';
+              }
+              this.update();
+            });
+
+            this.elements.viewMode.addEventListener('change', () => {
+              this.state.viewMode = this.elements.viewMode.value;
+              this.update();
+            });
+
+            this.elements.runButton.addEventListener('click', () => {
+              this.runSimulation();
+            });
+
+            this.elements.exportButton.addEventListener('click', () => {
+              this.treeView.exportSVG();
+            });
+
+            this.elements.presets.forEach(button => {
+              button.addEventListener('click', () => {
+                this.applyPreset(button.dataset.preset);
+              });
+            });
+
+            this.elements.themeSwitch.addEventListener('click', () => this.toggleTheme());
+            this.elements.themeSwitch.addEventListener('keydown', (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                this.toggleTheme();
+              }
+            });
+
+            this.elements.threeToggle.addEventListener('click', () => {
+              if (this.dice3D.isPaused) {
+                this.dice3D.resume();
+              } else {
+                this.dice3D.pause();
+              }
+            });
+          }
+
+          applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const isLight = theme === 'light';
+            this.elements.themeSwitch.setAttribute('aria-checked', String(isLight));
+            this.elements.themeSwitch.querySelector('.switch').setAttribute('aria-checked', String(isLight));
+            this.elements.themeSwitch.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+          }
+
+          toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            const next = current === 'dark' ? 'light' : 'dark';
+            this.applyTheme(next);
+          }
+
+          applyPreset(name) {
+            if (name === 'A') {
+              this.elements.diceCount.value = '1';
+              this.state.diceCount = 1;
+              this.elements.viewModeField.style.display = 'none';
+              this.elements.simulationCount.value = 10000;
+              this.state.viewMode = 'full';
+              this.elements.viewMode.value = 'full';
+              this.elements.coinTypeRadios.find(r => r.value === 'fair').checked = true;
+              this.state.coinType = 'fair';
+              this.state.bias = 0.5;
+              this.state.useDebiasing = false;
+              this.elements.biasField.hidden = true;
+              this.elements.debiasField.hidden = true;
+            }
+            if (name === 'B') {
+              this.elements.diceCount.value = '2';
+              this.state.diceCount = 2;
+              this.elements.viewModeField.style.display = '';
+              this.elements.simulationCount.value = 20000;
+              this.state.viewMode = 'full';
+              this.elements.viewMode.value = 'full';
+              this.elements.coinTypeRadios.find(r => r.value === 'biased').checked = true;
+              this.state.coinType = 'biased';
+              this.state.bias = 0.61;
+              this.elements.biasSlider.value = 0.61;
+              this.elements.biasSlider.setAttribute('aria-valuenow', '0.61');
+              this.elements.biasValue.textContent = '0.61';
+              this.elements.biasField.hidden = false;
+              this.elements.debiasField.hidden = false;
+              this.state.useDebiasing = true;
+              this.elements.debiasToggle.checked = true;
+              this.elements.debiasWarning.classList.remove('active');
+            }
+            this.update();
+          }
+
+          buildTree() {
+            const builder = new TreeBuilder({
+              bias: this.state.coinType === 'fair' ? 0.5 : this.state.bias,
+              useDebiasing: this.state.coinType === 'fair' ? false : this.state.useDebiasing,
+              diceCount: this.state.diceCount,
+              viewMode: this.state.viewMode
+            });
+            return builder.build();
+          }
+
+          updateInfoStrip({ rejectProbability, distribution }) {
+            this.elements.rejectProb.textContent = Utils.formatProb(rejectProbability);
+            this.elements.distributionType.textContent = distribution;
+            this.elements.modeInfo.textContent = this.state.diceCount === 1 ? '1 dé' : (this.state.viewMode === 'sum' ? 'Somme de 2 dés' : '2 dés (paires)');
+          }
+
+          updateStats({ theoretical, empirical, simulations }) {
+            const rows = Stats.compare({ theoretical, empirical, simulations });
+            this.elements.statsBody.innerHTML = '';
+            rows.forEach(row => {
+              const tr = document.createElement('tr');
+              const diffClass = row.diff < 0.005 ? 'stat-positive' : 'stat-negative';
+              tr.innerHTML = `
+                <td>${row.key}</td>
+                <td>${Utils.formatProb(row.theoretical)}</td>
+                <td>${Utils.formatProb(row.empirical)}</td>
+                <td class="${diffClass}">${Utils.formatProb(row.diff)}</td>
+                <td>${(row.rel * 100).toFixed(2)} %</td>
+              `;
+              this.elements.statsBody.appendChild(tr);
+            });
+          }
+
+          async runSimulation() {
+            const N = Number(this.elements.simulationCount.value);
+            if (!Number.isFinite(N) || N < 100 || N > 1000000) {
+              alert('Veuillez saisir un nombre de simulations entre 100 et 1 000 000.');
+              return;
+            }
+            this.elements.loader.classList.add('active');
+            this.elements.loader.setAttribute('aria-hidden', 'false');
+
+            const params = {
+              bias: this.state.coinType === 'fair' ? 0.5 : this.state.bias,
+              useDebiasing: this.state.coinType === 'fair' ? false : this.state.useDebiasing,
+              diceCount: this.state.diceCount,
+              simulations: N,
+              aggregateSum: this.state.diceCount === 2 && this.state.viewMode === 'sum'
+            };
+
+            const theoretical = (() => {
+              if (params.diceCount === 1) {
+                const map = new Map();
+                Stats.theoreticalSingleDie({ bias: params.bias, useDebiasing: params.useDebiasing }).forEach(item => {
+                  map.set(String(item.face), item.probability);
+                });
+                return map;
+              }
+              if (params.aggregateSum) {
+                return Stats.theoreticalSum({ bias: params.bias, useDebiasing: params.useDebiasing });
+              }
+              return Stats.theoreticalTwoDice({ bias: params.bias, useDebiasing: params.useDebiasing });
+            })();
+
+            const empirical = await this.runMonteCarlo(params);
+            this.updateStats({ theoretical, empirical, simulations: N });
+            this.elements.loader.classList.remove('active');
+            this.elements.loader.setAttribute('aria-hidden', 'true');
+          }
+
+          runMonteCarlo({ bias, useDebiasing, diceCount, simulations, aggregateSum }) {
+            return new Promise(resolve => {
+              const die = new DieSimulator({ bias, useDebiasing });
+              const counts = new Map();
+              const batchSize = 5000;
+              let processed = 0;
+
+              const step = () => {
+                const end = Math.min(processed + batchSize, simulations);
+                for (; processed < end; processed++) {
+                  if (diceCount === 1) {
+                    const value = die.rollOnce();
+                    const key = String(value);
+                    counts.set(key, (counts.get(key) || 0) + 1);
+                  } else {
+                    const [a, b] = die.rollMultiple(2);
+                    if (aggregateSum) {
+                      const sum = a + b;
+                      const key = String(sum);
+                      counts.set(key, (counts.get(key) || 0) + 1);
+                    } else {
+                      const key = `${a},${b}`;
+                      counts.set(key, (counts.get(key) || 0) + 1);
+                    }
+                  }
+                }
+                if (processed < simulations) {
+                  requestAnimationFrame(step);
+                } else {
+                  resolve(counts);
+                }
+              };
+              step();
+            });
+          }
+
+          update() {
+            const bias = this.state.coinType === 'fair' ? 0.5 : this.state.bias;
+            const useDebiasing = this.state.coinType === 'fair' ? false : this.state.useDebiasing;
+            const treeData = this.buildTree();
+            this.treeView.render(treeData);
+
+            const distributionType = useDebiasing || Math.abs(bias - 0.5) < 1e-9 ? 'Uniforme' : 'Biais résiduel';
+            const rejectProbability = Stats.rejectionProbability({ bias, useDebiasing });
+            this.updateInfoStrip({ rejectProbability, distribution: distributionType });
+
+            const theoretical = (() => {
+              if (this.state.diceCount === 1) {
+                const map = new Map();
+                Stats.theoreticalSingleDie({ bias, useDebiasing }).forEach(item => {
+                  map.set(String(item.face), item.probability);
+                });
+                return map;
+              }
+              if (this.state.viewMode === 'sum') {
+                return Stats.theoreticalSum({ bias, useDebiasing });
+              }
+              return Stats.theoreticalTwoDice({ bias, useDebiasing });
+            })();
+            const empirical = new Map();
+            theoretical.forEach((prob, key) => empirical.set(String(key), prob));
+            this.updateStats({ theoretical, empirical, simulations: 1 });
+          }
+        }
+        return UI;
+      })();
+
+      // Assertions rapides pour garantir la cohérence de la théorie
+      (() => {
+        const uniform = Stats.theoreticalSingleDie({ bias: 0.5, useDebiasing: false });
+        console.assert(Math.abs(uniform.reduce((acc, v) => acc + v.probability, 0) - 1) < 1e-9, 'La distribution uniforme doit sommer à 1.');
+        const biased = Stats.theoreticalSingleDie({ bias: 0.61, useDebiasing: false });
+        console.assert(Math.abs(biased.reduce((acc, v) => acc + v.probability, 0) - 1) < 1e-9, 'La distribution biaisée doit sommer à 1.');
+      })();
+
+      document.addEventListener('DOMContentLoaded', () => {
+        new UI();
+      });
+    })();
+  </script>
+</body>
+</html>
